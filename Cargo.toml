@@ -1,0 +1,9 @@
+[package]
+name = "meshweaver"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+wgpu = "0.6"
+winit = "0.23"
+pollster = "0.2"
