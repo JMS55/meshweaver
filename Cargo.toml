@@ -10,3 +10,4 @@ obj-rs = "0.6"
 ultraviolet = "0.7"
 bytemuck = { version = "1.4", features = ["derive"] }
 pollster = "0.2"
+env_logger = "0.7"
