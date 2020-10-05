@@ -11,6 +11,7 @@ pub struct Renderer {
     vertex_buffer: Buffer,
     index_buffer: Buffer,
     indices_count: u32,
+    depth_texture: TextureView,
     msaa_texture: TextureView,
 
     view_matrix: Mat4,
@@ -106,6 +107,21 @@ impl Renderer {
             }],
         });
 
+        let depth_texture = device
+            .create_texture(&TextureDescriptor {
+                label: None,
+                size: Extent3d {
+                    width: screen_width as u32,
+                    height: screen_height as u32,
+                    depth: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 8,
+                dimension: TextureDimension::D2,
+                format: TextureFormat::Depth32Float,
+                usage: TextureUsage::OUTPUT_ATTACHMENT,
+            })
+            .create_view(&TextureViewDescriptor::default());
         let msaa_texture = device
             .create_texture(&TextureDescriptor {
                 label: None,
@@ -153,7 +169,12 @@ impl Renderer {
                 color_blend: BlendDescriptor::REPLACE,
                 write_mask: ColorWrite::ALL,
             }],
-            depth_stencil_state: None,
+            depth_stencil_state: Some(DepthStencilStateDescriptor {
+                format: TextureFormat::Depth32Float,
+                depth_write_enabled: true,
+                depth_compare: CompareFunction::Less,
+                stencil: StencilStateDescriptor::default(),
+            }),
             vertex_state: VertexStateDescriptor {
                 index_format: IndexFormat::Uint16,
                 vertex_buffers: &[VertexBufferDescriptor {
@@ -172,6 +193,7 @@ impl Renderer {
             vertex_buffer,
             index_buffer,
             indices_count,
+            depth_texture,
             msaa_texture,
 
             view_matrix,
@@ -199,7 +221,14 @@ impl Renderer {
                     store: true,
                 },
             }],
-            depth_stencil_attachment: None,
+            depth_stencil_attachment: Some(RenderPassDepthStencilAttachmentDescriptor {
+                attachment: &self.depth_texture,
+                depth_ops: Some(Operations {
+                    load: LoadOp::Clear(1.0),
+                    store: true,
+                }),
+                stencil_ops: None,
+            }),
         });
         render_pass.set_pipeline(&self.render_pipeline);
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
@@ -210,6 +239,21 @@ impl Renderer {
     }
 
     pub fn set_screen_size(&mut self, device: &Device, width: f32, height: f32) {
+        self.depth_texture = device
+            .create_texture(&TextureDescriptor {
+                label: None,
+                size: Extent3d {
+                    width: width as u32,
+                    height: height as u32,
+                    depth: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 8,
+                dimension: TextureDimension::D2,
+                format: TextureFormat::Depth32Float,
+                usage: TextureUsage::OUTPUT_ATTACHMENT,
+            })
+            .create_view(&TextureViewDescriptor::default());
         self.msaa_texture = device
             .create_texture(&TextureDescriptor {
                 label: None,
