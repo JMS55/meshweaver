@@ -6,4 +6,6 @@ edition = "2018"
 [dependencies]
 wgpu = "0.6"
 winit = "0.23"
+obj-rs = "0.6"
+bytemuck = "1.4"
 pollster = "0.2"
