@@ -3,9 +3,9 @@ mod renderer;
 use crate::renderer::Renderer;
 use std::iter;
 use wgpu::*;
-use winit::event::{Event, VirtualKeyCode, WindowEvent};
+use winit::event::{ElementState, Event, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
-use winit::window::WindowBuilder;
+use winit::window::{Fullscreen, WindowBuilder};
 
 fn main() {
     env_logger::init();
@@ -77,10 +77,21 @@ fn main() {
                     new_inner_size.height as f32,
                 );
             }
-            WindowEvent::KeyboardInput { input, .. } => match input.virtual_keycode {
-                Some(VirtualKeyCode::Escape) => *control_flow = ControlFlow::Exit,
-                _ => {}
-            },
+            WindowEvent::KeyboardInput { input, .. } => {
+                if input.state == ElementState::Pressed {
+                    match input.virtual_keycode {
+                        Some(VirtualKeyCode::Escape) => *control_flow = ControlFlow::Exit,
+                        Some(VirtualKeyCode::Return) => {
+                            let fullscreen = match window.fullscreen() {
+                                Some(_) => None,
+                                None => Some(Fullscreen::Borderless(window.current_monitor())),
+                            };
+                            window.set_fullscreen(fullscreen);
+                        }
+                        _ => {}
+                    }
+                }
+            }
             _ => {}
         },
         Event::MainEventsCleared => {
