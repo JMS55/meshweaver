@@ -11,6 +11,7 @@ pub struct Renderer {
     vertex_buffer: Buffer,
     index_buffer: Buffer,
     indices_count: u32,
+    msaa_texture: TextureView,
 
     view_matrix: Mat4,
     projection_matrix: Mat4,
@@ -105,6 +106,22 @@ impl Renderer {
             }],
         });
 
+        let msaa_texture = device
+            .create_texture(&TextureDescriptor {
+                label: None,
+                size: Extent3d {
+                    width: screen_width as u32,
+                    height: screen_height as u32,
+                    depth: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 8,
+                dimension: TextureDimension::D2,
+                format: TextureFormat::Bgra8UnormSrgb,
+                usage: TextureUsage::OUTPUT_ATTACHMENT,
+            })
+            .create_view(&TextureViewDescriptor::default());
+
         let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: None,
             bind_group_layouts: &[&camera_bind_group_layout, &light_bind_group_layout],
@@ -145,7 +162,7 @@ impl Renderer {
                     attributes: &vertex_attr_array![0 => Float3, 1 => Float3],
                 }],
             },
-            sample_count: 1,
+            sample_count: 8,
             sample_mask: !0,
             alpha_to_coverage_enabled: false,
         });
@@ -155,6 +172,7 @@ impl Renderer {
             vertex_buffer,
             index_buffer,
             indices_count,
+            msaa_texture,
 
             view_matrix,
             projection_matrix,
@@ -174,8 +192,8 @@ impl Renderer {
     pub fn render(&self, encoder: &mut CommandEncoder, render_target: &TextureView) {
         let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
             color_attachments: &[RenderPassColorAttachmentDescriptor {
-                attachment: render_target,
-                resolve_target: None,
+                attachment: &self.msaa_texture,
+                resolve_target: Some(render_target),
                 ops: Operations {
                     load: LoadOp::Clear(Color::BLACK),
                     store: true,
@@ -192,6 +210,22 @@ impl Renderer {
     }
 
     pub fn set_screen_size(&mut self, device: &Device, width: f32, height: f32) {
+        self.msaa_texture = device
+            .create_texture(&TextureDescriptor {
+                label: None,
+                size: Extent3d {
+                    width: width as u32,
+                    height: height as u32,
+                    depth: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 8,
+                dimension: TextureDimension::D2,
+                format: TextureFormat::Bgra8UnormSrgb,
+                usage: TextureUsage::OUTPUT_ATTACHMENT,
+            })
+            .create_view(&TextureViewDescriptor::default());
+
         self.projection_matrix = perspective_wgpu_dx(45.0, width / height, 0.1, 100.0);
         let camera_uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: None,
