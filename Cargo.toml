@@ -7,5 +7,6 @@ edition = "2018"
 wgpu = "0.6"
 winit = "0.23"
 obj-rs = "0.6"
-bytemuck = "1.4"
+ultraviolet = "0.7"
+bytemuck = { version = "1.4", features = ["derive"] }
 pollster = "0.2"

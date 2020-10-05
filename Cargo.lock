@@ -70,6 +70,20 @@ name = "bytemuck"
 version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "41aa2ec95ca3b5c54cf73c91acf06d24f4495d5f1b1c12506ae3483d646177ac"
+dependencies = [
+ "bytemuck_derive",
+]
+
+[[package]]
+name = "bytemuck_derive"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "28dae23a39becf0b1c8f9198d7e9fc80aaf1ec1ee7428ec570f6a0269e59a9cc"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "byteorder"
@@ -758,6 +772,7 @@ dependencies = [
  "bytemuck",
  "obj-rs",
  "pollster",
+ "ultraviolet",
  "wgpu",
  "winit",
 ]
@@ -1143,6 +1158,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "safe_arch"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c1ff3d6d9696af502cc3110dacce942840fb06ff4514cad92236ecc455f2ce05"
+dependencies = [
+ "bytemuck",
+]
+
+[[package]]
 name = "same-file"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1322,6 +1346,15 @@ name = "typed-arena"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0685c84d5d54d1c26f7d3eb96cd41550adb97baed141a761cf335d3d33bcd0ae"
+
+[[package]]
+name = "ultraviolet"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ad08fbec8474ef05d08ccd4dbd88afb4e33d45bc7b7fcb76a0e651143efb985"
+dependencies = [
+ "wide",
+]
 
 [[package]]
 name = "unicode-xid"
@@ -1558,6 +1591,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e3529528e608b54838ee618c3923b0f46e6db0334cfc6c42a16cf4ceb3bdb57"
 dependencies = [
  "bitflags",
+]
+
+[[package]]
+name = "wide"
+version = "0.5.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "80b27c76ecc22bd81fe681d9c9eac81e002d7b7048105ee4608f57c4e92e9211"
+dependencies = [
+ "bytemuck",
+ "safe_arch",
 ]
 
 [[package]]
