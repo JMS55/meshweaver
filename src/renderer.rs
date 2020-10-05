@@ -25,7 +25,7 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(device: &Device, screen_width: f32, screen_height: f32) -> Self {
-        let obj = load_obj::<_, _, u16>(&include_bytes!("../uvsphere.obj")[..]).unwrap();
+        let obj = load_obj::<_, _, u16>(&include_bytes!("../monkey.obj")[..]).unwrap();
         let vertices = obj
             .vertices
             .into_iter()
