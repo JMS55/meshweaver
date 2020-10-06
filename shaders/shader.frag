@@ -7,7 +7,7 @@ layout(set = 2, binding = 0) uniform Light { vec3 light_position; };
 layout(location = 0) out vec4 color;
 
 void main() {
-    vec3 object_color = vec3(0.5, 0.5, 0.5);
+    vec3 object_color = normalize(position);
 
     vec3 light_color = vec3(1.0, 1.0, 1.0);
 
