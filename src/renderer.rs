@@ -1,5 +1,4 @@
-use bytemuck::{Pod, Zeroable};
-use obj::load_obj;
+use crate::objects::{Mesh, Vertex};
 use std::mem;
 use ultraviolet::projection::rh_yup::perspective_wgpu_dx;
 use ultraviolet::{Mat4, Vec3};
@@ -7,12 +6,9 @@ use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::*;
 
 pub struct Renderer {
-    render_pipeline: RenderPipeline,
-    vertex_buffer: Buffer,
-    index_buffer: Buffer,
-    indices_count: u32,
     depth_texture: TextureView,
     msaa_texture: TextureView,
+    render_pipeline: RenderPipeline,
 
     view_matrix: Mat4,
     projection_matrix: Mat4,
@@ -26,27 +22,6 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(device: &Device, screen_width: f32, screen_height: f32) -> Self {
-        let obj = load_obj::<_, _, u16>(&include_bytes!("../monkey.obj")[..]).unwrap();
-        let vertices = obj
-            .vertices
-            .into_iter()
-            .map(|vertex: obj::Vertex| Vertex {
-                position: vertex.position,
-                normal: vertex.normal,
-            })
-            .collect::<Vec<Vertex>>();
-        let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(&vertices),
-            usage: BufferUsage::VERTEX,
-        });
-        let index_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(&obj.indices),
-            usage: BufferUsage::INDEX,
-        });
-        let indices_count = obj.indices.len() as u32;
-
         let view_matrix = Mat4::look_at(
             Vec3::new(0.0, 1.0, 2.0),
             Vec3::new(0.0, 0.0, 0.0),
@@ -190,9 +165,6 @@ impl Renderer {
 
         Self {
             render_pipeline,
-            vertex_buffer,
-            index_buffer,
-            indices_count,
             depth_texture,
             msaa_texture,
 
@@ -211,7 +183,7 @@ impl Renderer {
         todo!()
     }
 
-    pub fn render(&self, encoder: &mut CommandEncoder, render_target: &TextureView) {
+    pub fn render(&self, mesh: &Mesh, encoder: &mut CommandEncoder, render_target: &TextureView) {
         let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
             color_attachments: &[RenderPassColorAttachmentDescriptor {
                 attachment: &self.msaa_texture,
@@ -231,11 +203,11 @@ impl Renderer {
             }),
         });
         render_pass.set_pipeline(&self.render_pipeline);
-        render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-        render_pass.set_index_buffer(self.index_buffer.slice(..));
+        render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+        render_pass.set_index_buffer(mesh.index_buffer.slice(..));
         render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
         render_pass.set_bind_group(1, &self.light_bind_group, &[]);
-        render_pass.draw_indexed(0..self.indices_count, 0, 0..1);
+        render_pass.draw_indexed(0..mesh.index_count, 0, 0..1);
     }
 
     pub fn set_screen_size(&mut self, device: &Device, width: f32, height: f32) {
@@ -285,11 +257,4 @@ impl Renderer {
             }],
         });
     }
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Pod, Zeroable)]
-struct Vertex {
-    position: [f32; 3],
-    normal: [f32; 3],
 }

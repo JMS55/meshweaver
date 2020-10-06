@@ -1,5 +1,7 @@
+mod objects;
 mod renderer;
 
+use crate::objects::Mesh;
 use crate::renderer::Renderer;
 use std::iter;
 use wgpu::*;
@@ -47,16 +49,21 @@ fn main() {
     };
     let mut swapchain = device.create_swap_chain(&surface, &swapchain_descriptor);
 
+    let meshes = vec![
+        Mesh::from_obj_file(&device, &include_bytes!("../monkey.obj")[..]),
+        Mesh::from_obj_file(&device, &include_bytes!("../uvsphere.obj")[..]),
+    ];
+    let mut current_mesh = 0;
     let mut renderer = Renderer::new(
         &device,
         swapchain_descriptor.width as f32,
         swapchain_descriptor.height as f32,
     );
 
-    // Run EventLoop
     event_loop.run(move |event, _, control_flow| match event {
         Event::WindowEvent { event, .. } => match event {
             WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+
             WindowEvent::Resized(new_inner_size) => {
                 swapchain_descriptor.width = new_inner_size.width;
                 swapchain_descriptor.height = new_inner_size.height;
@@ -67,6 +74,7 @@ fn main() {
                     new_inner_size.height as f32,
                 );
             }
+
             WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                 swapchain_descriptor.width = new_inner_size.width;
                 swapchain_descriptor.height = new_inner_size.height;
@@ -77,6 +85,7 @@ fn main() {
                     new_inner_size.height as f32,
                 );
             }
+
             WindowEvent::KeyboardInput { input, .. } => {
                 if input.state == ElementState::Pressed {
                     match input.virtual_keycode {
@@ -88,20 +97,36 @@ fn main() {
                             };
                             window.set_fullscreen(fullscreen);
                         }
+                        Some(VirtualKeyCode::Right) => {
+                            if current_mesh != meshes.len() - 1 {
+                                current_mesh += 1;
+                            } else {
+                                current_mesh = 0;
+                            }
+                        }
+                        Some(VirtualKeyCode::Left) => {
+                            if current_mesh != 0 {
+                                current_mesh -= 1;
+                            } else {
+                                current_mesh = meshes.len() - 1;
+                            }
+                        }
                         _ => {}
                     }
                 }
             }
             _ => {}
         },
+
         Event::MainEventsCleared => {
             window.request_redraw();
         }
+
         Event::RedrawRequested(_) => {
             let frame = swapchain.get_current_frame().unwrap().output;
             let mut encoder =
                 device.create_command_encoder(&CommandEncoderDescriptor { label: None });
-            renderer.render(&mut encoder, &frame.view);
+            renderer.render(&meshes[current_mesh], &mut encoder, &frame.view);
             queue.submit(iter::once(encoder.finish()));
         }
         _ => {}
