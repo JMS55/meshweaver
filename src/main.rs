@@ -4,6 +4,7 @@ mod renderer;
 use crate::objects::Mesh;
 use crate::renderer::Renderer;
 use std::iter;
+use std::time::{Duration, Instant};
 use wgpu::*;
 use winit::event::{ElementState, Event, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -17,6 +18,8 @@ fn main() {
         .with_title("Meshweaver")
         .build(&event_loop)
         .unwrap();
+    let mut last_frame = Instant::now();
+    let mut time_accumulator = Duration::from_secs(0);
 
     let instance = Instance::new(BackendBit::PRIMARY);
     let surface = unsafe { instance.create_surface(&window) };
@@ -61,6 +64,12 @@ fn main() {
     );
 
     event_loop.run(move |event, _, control_flow| match event {
+        Event::NewEvents(_) => {
+            let now = Instant::now();
+            time_accumulator += last_frame.elapsed();
+            last_frame = now;
+        }
+
         Event::WindowEvent { event, .. } => match event {
             WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
 
@@ -74,7 +83,6 @@ fn main() {
                     new_inner_size.height as f32,
                 );
             }
-
             WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                 swapchain_descriptor.width = new_inner_size.width;
                 swapchain_descriptor.height = new_inner_size.height;
@@ -96,6 +104,9 @@ fn main() {
                                 None => Some(Fullscreen::Borderless(window.current_monitor())),
                             };
                             window.set_fullscreen(fullscreen);
+                        }
+                        Some(VirtualKeyCode::Space) => {
+                            renderer.light_paused = !renderer.light_paused;
                         }
                         Some(VirtualKeyCode::Right) => {
                             if current_mesh != meshes.len() - 1 {
@@ -119,6 +130,11 @@ fn main() {
         },
 
         Event::MainEventsCleared => {
+            const TARGET_TIME: Duration = Duration::from_nanos(16666670);
+            while time_accumulator >= TARGET_TIME {
+                renderer.update_light_position(&device, TARGET_TIME);
+                time_accumulator -= TARGET_TIME;
+            }
             window.request_redraw();
         }
 
