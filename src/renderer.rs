@@ -19,7 +19,6 @@ pub struct Renderer {
     camera_bind_group: BindGroup,
 
     light_position: Vec3,
-    pub light_paused: bool,
     light_uniform_buffer: Buffer,
     light_bind_group_layout: BindGroupLayout,
     light_bind_group: BindGroup,
@@ -198,7 +197,6 @@ impl Renderer {
             camera_bind_group,
 
             light_position,
-            light_paused: true,
             light_uniform_buffer,
             light_bind_group_layout,
             light_bind_group,
@@ -211,25 +209,23 @@ impl Renderer {
         device: &Device,
         time_elapsed: Duration,
     ) {
-        if !self.light_paused {
-            // One full rotation every 5 seconds
-            let angle = (time_elapsed.as_secs_f32() * 365.0) / 5.0;
-            self.light_position
-                .rotate_by(Rotor3::from_rotation_xz(angle.to_radians()));
-            queue.write_buffer(
-                &self.light_uniform_buffer,
-                0,
-                bytemuck::cast_slice(self.light_position.as_slice()),
-            );
-            self.light_bind_group = device.create_bind_group(&BindGroupDescriptor {
-                label: None,
-                layout: &self.light_bind_group_layout,
-                entries: &[BindGroupEntry {
-                    binding: 0,
-                    resource: BindingResource::Buffer(self.light_uniform_buffer.slice(..)),
-                }],
-            });
-        }
+        // One full rotation every 5 seconds
+        let angle = (time_elapsed.as_secs_f32() * 365.0) / 5.0;
+        self.light_position
+            .rotate_by(Rotor3::from_rotation_xz(angle.to_radians()));
+        queue.write_buffer(
+            &self.light_uniform_buffer,
+            0,
+            bytemuck::cast_slice(self.light_position.as_slice()),
+        );
+        self.light_bind_group = device.create_bind_group(&BindGroupDescriptor {
+            label: None,
+            layout: &self.light_bind_group_layout,
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: BindingResource::Buffer(self.light_uniform_buffer.slice(..)),
+            }],
+        });
     }
 
     pub fn render(&self, mesh: &Mesh, encoder: &mut CommandEncoder, render_target: &TextureView) {

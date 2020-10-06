@@ -67,6 +67,7 @@ fn main() {
     .map(|obj| Mesh::from_obj_file(&device, &renderer.transform_bind_group_layout, obj))
     .collect::<Vec<Mesh>>();
     let mut current_mesh = 0;
+    let mut mode_1 = true;
 
     event_loop.run(move |event, _, control_flow| match event {
         Event::NewEvents(_) => {
@@ -115,7 +116,7 @@ fn main() {
                             window.set_fullscreen(fullscreen);
                         }
                         Some(VirtualKeyCode::Space) => {
-                            renderer.light_paused = !renderer.light_paused;
+                            mode_1 = !mode_1;
                         }
                         Some(VirtualKeyCode::Right) => {
                             current_mesh = (current_mesh + 1) % meshes.len();
@@ -148,18 +149,21 @@ fn main() {
         Event::MainEventsCleared => {
             const TARGET_TIME: Duration = Duration::from_nanos(16666670);
             while time_accumulator >= TARGET_TIME {
-                renderer.update_light_position(&queue, &device, TARGET_TIME);
-                meshes.par_iter_mut().for_each(|mesh| {
-                    mesh.update_transform(
-                        &queue,
-                        &device,
-                        &renderer.transform_bind_group_layout,
-                        |transform| {
-                            transform.rotation =
-                                Rotor3::from_rotation_xz(0.5f32.to_radians()) * transform.rotation;
-                        },
-                    );
-                });
+                if mode_1 {
+                    meshes.par_iter_mut().for_each(|mesh| {
+                        mesh.update_transform(
+                            &queue,
+                            &device,
+                            &renderer.transform_bind_group_layout,
+                            |transform| {
+                                transform.rotation = Rotor3::from_rotation_xz(0.5f32.to_radians())
+                                    * transform.rotation;
+                            },
+                        );
+                    });
+                } else {
+                    renderer.update_light_position(&queue, &device, TARGET_TIME);
+                }
                 time_accumulator -= TARGET_TIME;
             }
             window.request_redraw();
