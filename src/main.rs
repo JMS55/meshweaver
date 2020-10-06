@@ -82,6 +82,7 @@ fn main() {
                 swapchain_descriptor.height = new_inner_size.height;
                 swapchain = device.create_swap_chain(&surface, &swapchain_descriptor);
                 renderer.set_screen_size(
+                    &queue,
                     &device,
                     new_inner_size.width as f32,
                     new_inner_size.height as f32,
@@ -92,6 +93,7 @@ fn main() {
                 swapchain_descriptor.height = new_inner_size.height;
                 swapchain = device.create_swap_chain(&surface, &swapchain_descriptor);
                 renderer.set_screen_size(
+                    &queue,
                     &device,
                     new_inner_size.width as f32,
                     new_inner_size.height as f32,
@@ -116,9 +118,7 @@ fn main() {
                             current_mesh = (current_mesh + 1) % meshes.len();
                         }
                         Some(VirtualKeyCode::Left) => {
-                            current_mesh = (current_mesh as isize - 1)
-                                .rem_euclid(meshes.len() as isize)
-                                as usize;
+                            current_mesh = current_mesh.wrapping_sub(1).min(meshes.len() - 1);
                         }
                         _ => {}
                     }
@@ -130,7 +130,7 @@ fn main() {
         Event::MainEventsCleared => {
             const TARGET_TIME: Duration = Duration::from_nanos(16666670);
             while time_accumulator >= TARGET_TIME {
-                renderer.update_light_position(&device, TARGET_TIME);
+                renderer.update_light_position(&queue, &device, TARGET_TIME);
                 time_accumulator -= TARGET_TIME;
             }
             window.request_redraw();

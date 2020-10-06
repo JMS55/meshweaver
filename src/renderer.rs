@@ -13,11 +13,13 @@ pub struct Renderer {
 
     view_matrix: Mat4,
     projection_matrix: Mat4,
+    camera_uniform_buffer: Buffer,
     camera_bind_group_layout: BindGroupLayout,
     camera_bind_group: BindGroup,
 
     light_position: Vec3,
     pub light_paused: bool,
+    light_uniform_buffer: Buffer,
     light_bind_group_layout: BindGroupLayout,
     light_bind_group: BindGroup,
 }
@@ -33,7 +35,7 @@ impl Renderer {
         let camera_uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: None,
             contents: bytemuck::cast_slice((projection_matrix * view_matrix).as_slice()),
-            usage: BufferUsage::UNIFORM,
+            usage: BufferUsage::UNIFORM | BufferUsage::COPY_DST,
         });
         let camera_bind_group_layout =
             device.create_bind_group_layout(&BindGroupLayoutDescriptor {
@@ -61,7 +63,7 @@ impl Renderer {
         let light_uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
             label: None,
             contents: bytemuck::cast_slice(light_position.as_slice()),
-            usage: BufferUsage::UNIFORM,
+            usage: BufferUsage::UNIFORM | BufferUsage::COPY_DST,
         });
         let light_bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: None,
@@ -172,33 +174,40 @@ impl Renderer {
 
             view_matrix,
             projection_matrix,
+            camera_uniform_buffer,
             camera_bind_group_layout,
             camera_bind_group,
 
             light_position,
             light_paused: true,
+            light_uniform_buffer,
             light_bind_group_layout,
             light_bind_group,
         }
     }
 
-    pub fn update_light_position(&mut self, device: &Device, time_elapsed: Duration) {
+    pub fn update_light_position(
+        &mut self,
+        queue: &Queue,
+        device: &Device,
+        time_elapsed: Duration,
+    ) {
         if !self.light_paused {
             // One full rotation every 5 seconds
             let angle = (time_elapsed.as_secs_f32() * 365.0) / 5.0;
             self.light_position
                 .rotate_by(Rotor3::from_rotation_xz(angle.to_radians()));
-            let light_uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
-                label: None,
-                contents: bytemuck::cast_slice(self.light_position.as_slice()),
-                usage: BufferUsage::UNIFORM,
-            });
+            queue.write_buffer(
+                &self.light_uniform_buffer,
+                0,
+                bytemuck::cast_slice(self.light_position.as_slice()),
+            );
             self.light_bind_group = device.create_bind_group(&BindGroupDescriptor {
                 label: None,
                 layout: &self.light_bind_group_layout,
                 entries: &[BindGroupEntry {
                     binding: 0,
-                    resource: BindingResource::Buffer(light_uniform_buffer.slice(..)),
+                    resource: BindingResource::Buffer(self.light_uniform_buffer.slice(..)),
                 }],
             });
         }
@@ -231,7 +240,7 @@ impl Renderer {
         render_pass.draw_indexed(0..mesh.index_count, 0, 0..1);
     }
 
-    pub fn set_screen_size(&mut self, device: &Device, width: f32, height: f32) {
+    pub fn set_screen_size(&mut self, queue: &Queue, device: &Device, width: f32, height: f32) {
         self.depth_texture = device
             .create_texture(&TextureDescriptor {
                 label: None,
@@ -264,17 +273,17 @@ impl Renderer {
             .create_view(&TextureViewDescriptor::default());
 
         self.projection_matrix = perspective_wgpu_dx(45.0, width / height, 0.1, 100.0);
-        let camera_uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice((self.projection_matrix * self.view_matrix).as_slice()),
-            usage: BufferUsage::UNIFORM,
-        });
+        queue.write_buffer(
+            &self.camera_uniform_buffer,
+            0,
+            bytemuck::cast_slice((self.projection_matrix * self.view_matrix).as_slice()),
+        );
         self.camera_bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: None,
             layout: &self.camera_bind_group_layout,
             entries: &[BindGroupEntry {
                 binding: 0,
-                resource: BindingResource::Buffer(camera_uniform_buffer.slice(..)),
+                resource: BindingResource::Buffer(self.camera_uniform_buffer.slice(..)),
             }],
         });
     }
