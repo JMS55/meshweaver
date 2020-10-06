@@ -3,6 +3,7 @@ mod renderer;
 
 use crate::objects::Mesh;
 use crate::renderer::Renderer;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::iter;
 use std::time::{Duration, Instant};
 use wgpu::*;
@@ -53,9 +54,12 @@ fn main() {
     let mut swapchain = device.create_swap_chain(&surface, &swapchain_descriptor);
 
     let meshes = vec![
-        Mesh::from_obj_file(&device, &include_bytes!("../meshes/monkey.obj")[..]),
-        Mesh::from_obj_file(&device, &include_bytes!("../meshes/uvsphere.obj")[..]),
-    ];
+        &include_bytes!("../meshes/monkey.obj")[..],
+        &include_bytes!("../meshes/uvsphere.obj")[..],
+    ]
+    .into_par_iter()
+    .map(|obj| Mesh::from_obj_file(&device, obj))
+    .collect::<Vec<Mesh>>();
     let mut current_mesh = 0;
     let mut renderer = Renderer::new(
         &device,
