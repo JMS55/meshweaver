@@ -2,7 +2,7 @@
 
 layout(location = 0) in vec3 position;
 layout(location = 1) in vec3 normal;
-layout(set = 1, binding = 0) uniform Light { vec3 light_position; };
+layout(set = 2, binding = 0) uniform Light { vec3 light_position; };
 
 layout(location = 0) out vec4 color;
 

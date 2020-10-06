@@ -9,6 +9,7 @@ use wgpu::*;
 pub struct Renderer {
     depth_texture: TextureView,
     msaa_texture: TextureView,
+    pub transform_bind_group_layout: BindGroupLayout,
     render_pipeline: RenderPipeline,
 
     view_matrix: Mat4,
@@ -116,10 +117,27 @@ impl Renderer {
                 usage: TextureUsage::OUTPUT_ATTACHMENT,
             })
             .create_view(&TextureViewDescriptor::default());
+        let transform_bind_group_layout =
+            device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+                label: None,
+                entries: &[BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStage::VERTEX,
+                    ty: BindingType::UniformBuffer {
+                        dynamic: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+            });
 
         let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: None,
-            bind_group_layouts: &[&camera_bind_group_layout, &light_bind_group_layout],
+            bind_group_layouts: &[
+                &camera_bind_group_layout,
+                &transform_bind_group_layout,
+                &light_bind_group_layout,
+            ],
             push_constant_ranges: &[],
         });
         let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
@@ -170,6 +188,7 @@ impl Renderer {
         Self {
             render_pipeline,
             depth_texture,
+            transform_bind_group_layout,
             msaa_texture,
 
             view_matrix,
@@ -236,7 +255,8 @@ impl Renderer {
         render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
         render_pass.set_index_buffer(mesh.index_buffer.slice(..));
         render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
-        render_pass.set_bind_group(1, &self.light_bind_group, &[]);
+        render_pass.set_bind_group(1, &mesh.transform_bind_group, &[]);
+        render_pass.set_bind_group(2, &self.light_bind_group, &[]);
         render_pass.draw_indexed(0..mesh.index_count, 0, 0..1);
     }
 
