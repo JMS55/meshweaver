@@ -53,8 +53,8 @@ fn main() {
     let mut swapchain = device.create_swap_chain(&surface, &swapchain_descriptor);
 
     let meshes = vec![
-        Mesh::from_obj_file(&device, &include_bytes!("../monkey.obj")[..]),
-        Mesh::from_obj_file(&device, &include_bytes!("../uvsphere.obj")[..]),
+        Mesh::from_obj_file(&device, &include_bytes!("../meshes/monkey.obj")[..]),
+        Mesh::from_obj_file(&device, &include_bytes!("../meshes/uvsphere.obj")[..]),
     ];
     let mut current_mesh = 0;
     let mut renderer = Renderer::new(
@@ -109,18 +109,12 @@ fn main() {
                             renderer.light_paused = !renderer.light_paused;
                         }
                         Some(VirtualKeyCode::Right) => {
-                            if current_mesh != meshes.len() - 1 {
-                                current_mesh += 1;
-                            } else {
-                                current_mesh = 0;
-                            }
+                            current_mesh = (current_mesh + 1) % meshes.len();
                         }
                         Some(VirtualKeyCode::Left) => {
-                            if current_mesh != 0 {
-                                current_mesh -= 1;
-                            } else {
-                                current_mesh = meshes.len() - 1;
-                            }
+                            current_mesh = (current_mesh as isize - 1)
+                                .rem_euclid(meshes.len() as isize)
+                                as usize;
                         }
                         _ => {}
                     }
