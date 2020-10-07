@@ -6,7 +6,7 @@ use crate::renderer::Renderer;
 use rayon::iter::{IntoParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 use std::iter;
 use std::time::{Duration, Instant};
-use ultraviolet::Rotor3;
+use ultraviolet::{Rotor3, Vec3};
 use wgpu::*;
 use winit::event::{ElementState, Event, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -66,8 +66,24 @@ fn main() {
     .into_par_iter()
     .map(|obj| Mesh::from_obj_file(&device, &renderer.transform_bind_group_layout, obj))
     .collect::<Vec<Mesh>>();
-    let mut current_mesh = 0;
-    let mut mode_1 = true;
+    meshes[0].update_transform(
+        &queue,
+        &device,
+        &renderer.transform_bind_group_layout,
+        |transform| {
+            transform.translation = Vec3::new(-1.0, 0.0, 0.0);
+            transform.scale = 0.5;
+        },
+    );
+    meshes[1].update_transform(
+        &queue,
+        &device,
+        &renderer.transform_bind_group_layout,
+        |transform| {
+            transform.translation = Vec3::new(1.0, 0.0, 0.0);
+            transform.scale = 0.5;
+        },
+    );
 
     event_loop.run(move |event, _, control_flow| match event {
         Event::NewEvents(_) => {
@@ -104,8 +120,6 @@ fn main() {
 
             WindowEvent::KeyboardInput { input, .. } => {
                 if input.state == ElementState::Pressed {
-                    let mut size_change = 0.0;
-
                     match input.virtual_keycode {
                         Some(VirtualKeyCode::Escape) => *control_flow = ControlFlow::Exit,
                         Some(VirtualKeyCode::Return) => {
@@ -115,31 +129,7 @@ fn main() {
                             };
                             window.set_fullscreen(fullscreen);
                         }
-                        Some(VirtualKeyCode::Space) => {
-                            mode_1 = !mode_1;
-                        }
-                        Some(VirtualKeyCode::Right) => {
-                            current_mesh = (current_mesh + 1) % meshes.len();
-                        }
-                        Some(VirtualKeyCode::Left) => {
-                            current_mesh = current_mesh.wrapping_sub(1).min(meshes.len() - 1);
-                        }
-                        Some(VirtualKeyCode::Equals) => size_change += 0.1,
-                        Some(VirtualKeyCode::Minus) => size_change -= 0.1,
                         _ => {}
-                    }
-
-                    if size_change != 0.0 {
-                        meshes.par_iter_mut().for_each(|mesh| {
-                            mesh.update_transform(
-                                &queue,
-                                &device,
-                                &renderer.transform_bind_group_layout,
-                                |transform| {
-                                    transform.scale = (transform.scale + size_change).max(0.1);
-                                },
-                            );
-                        });
                     }
                 }
             }
@@ -149,21 +139,17 @@ fn main() {
         Event::MainEventsCleared => {
             const TARGET_TIME: Duration = Duration::from_nanos(16666670);
             while time_accumulator >= TARGET_TIME {
-                if mode_1 {
-                    meshes.par_iter_mut().for_each(|mesh| {
-                        mesh.update_transform(
-                            &queue,
-                            &device,
-                            &renderer.transform_bind_group_layout,
-                            |transform| {
-                                transform.rotation = Rotor3::from_rotation_xz(0.5f32.to_radians())
-                                    * transform.rotation;
-                            },
-                        );
-                    });
-                } else {
-                    renderer.update_light_position(&queue, &device, TARGET_TIME);
-                }
+                meshes.par_iter_mut().for_each(|mesh| {
+                    mesh.update_transform(
+                        &queue,
+                        &device,
+                        &renderer.transform_bind_group_layout,
+                        |transform| {
+                            transform.rotation =
+                                Rotor3::from_rotation_xz(0.5f32.to_radians()) * transform.rotation;
+                        },
+                    );
+                });
                 time_accumulator -= TARGET_TIME;
             }
             window.request_redraw();
@@ -173,7 +159,10 @@ fn main() {
             let frame = swapchain.get_current_frame().unwrap().output;
             let mut encoder =
                 device.create_command_encoder(&CommandEncoderDescriptor { label: None });
-            renderer.render(&meshes[current_mesh], &mut encoder, &frame.view);
+            renderer.clear(&mut encoder, &frame.view);
+            for mesh in &meshes {
+                renderer.render(mesh, &mut encoder, &frame.view);
+            }
             queue.submit(iter::once(encoder.finish()));
         }
         _ => {}

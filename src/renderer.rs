@@ -1,8 +1,7 @@
 use crate::objects::{Mesh, Vertex};
 use std::mem;
-use std::time::Duration;
 use ultraviolet::projection::rh_yup::perspective_wgpu_dx;
-use ultraviolet::{Mat4, Rotor3, Vec3};
+use ultraviolet::{Mat4, Vec3};
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::*;
 
@@ -18,9 +17,6 @@ pub struct Renderer {
     camera_bind_group_layout: BindGroupLayout,
     camera_bind_group: BindGroup,
 
-    light_position: Vec3,
-    light_uniform_buffer: Buffer,
-    light_bind_group_layout: BindGroupLayout,
     light_bind_group: BindGroup,
 }
 
@@ -196,35 +192,21 @@ impl Renderer {
             camera_bind_group_layout,
             camera_bind_group,
 
-            light_position,
-            light_uniform_buffer,
-            light_bind_group_layout,
             light_bind_group,
         }
     }
 
-    pub fn update_light_position(
-        &mut self,
-        queue: &Queue,
-        device: &Device,
-        time_elapsed: Duration,
-    ) {
-        // One full rotation every 5 seconds
-        let angle = (time_elapsed.as_secs_f32() * 365.0) / 5.0;
-        self.light_position
-            .rotate_by(Rotor3::from_rotation_xz(angle.to_radians()));
-        queue.write_buffer(
-            &self.light_uniform_buffer,
-            0,
-            bytemuck::cast_slice(self.light_position.as_slice()),
-        );
-        self.light_bind_group = device.create_bind_group(&BindGroupDescriptor {
-            label: None,
-            layout: &self.light_bind_group_layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: BindingResource::Buffer(self.light_uniform_buffer.slice(..)),
+    pub fn clear(&self, encoder: &mut CommandEncoder, render_target: &TextureView) {
+        encoder.begin_render_pass(&RenderPassDescriptor {
+            color_attachments: &[RenderPassColorAttachmentDescriptor {
+                attachment: &self.msaa_texture,
+                resolve_target: Some(render_target),
+                ops: Operations {
+                    load: LoadOp::Clear(Color::BLACK),
+                    store: true,
+                },
             }],
+            depth_stencil_attachment: None,
         });
     }
 
@@ -234,7 +216,7 @@ impl Renderer {
                 attachment: &self.msaa_texture,
                 resolve_target: Some(render_target),
                 ops: Operations {
-                    load: LoadOp::Clear(Color::BLACK),
+                    load: LoadOp::Load,
                     store: true,
                 },
             }],
