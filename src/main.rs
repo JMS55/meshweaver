@@ -159,10 +159,7 @@ fn main() {
             let frame = swapchain.get_current_frame().unwrap().output;
             let mut encoder =
                 device.create_command_encoder(&CommandEncoderDescriptor { label: None });
-            renderer.clear(&mut encoder, &frame.view);
-            for mesh in &meshes {
-                renderer.render(mesh, &mut encoder, &frame.view);
-            }
+            renderer.render(&meshes, &mut encoder, &frame.view);
             queue.submit(iter::once(encoder.finish()));
         }
         _ => {}

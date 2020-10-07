@@ -196,7 +196,12 @@ impl Renderer {
         }
     }
 
-    pub fn clear(&self, encoder: &mut CommandEncoder, render_target: &TextureView) {
+    pub fn render(
+        &self,
+        meshes: &[Mesh],
+        encoder: &mut CommandEncoder,
+        render_target: &TextureView,
+    ) {
         encoder.begin_render_pass(&RenderPassDescriptor {
             color_attachments: &[RenderPassColorAttachmentDescriptor {
                 attachment: &self.msaa_texture,
@@ -208,34 +213,34 @@ impl Renderer {
             }],
             depth_stencil_attachment: None,
         });
-    }
 
-    pub fn render(&self, mesh: &Mesh, encoder: &mut CommandEncoder, render_target: &TextureView) {
-        let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
-            color_attachments: &[RenderPassColorAttachmentDescriptor {
-                attachment: &self.msaa_texture,
-                resolve_target: Some(render_target),
-                ops: Operations {
-                    load: LoadOp::Load,
-                    store: true,
-                },
-            }],
-            depth_stencil_attachment: Some(RenderPassDepthStencilAttachmentDescriptor {
-                attachment: &self.depth_texture,
-                depth_ops: Some(Operations {
-                    load: LoadOp::Clear(1.0),
-                    store: true,
+        for mesh in meshes {
+            let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+                color_attachments: &[RenderPassColorAttachmentDescriptor {
+                    attachment: &self.msaa_texture,
+                    resolve_target: Some(render_target),
+                    ops: Operations {
+                        load: LoadOp::Load,
+                        store: true,
+                    },
+                }],
+                depth_stencil_attachment: Some(RenderPassDepthStencilAttachmentDescriptor {
+                    attachment: &self.depth_texture,
+                    depth_ops: Some(Operations {
+                        load: LoadOp::Clear(1.0),
+                        store: true,
+                    }),
+                    stencil_ops: None,
                 }),
-                stencil_ops: None,
-            }),
-        });
-        render_pass.set_pipeline(&self.render_pipeline);
-        render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
-        render_pass.set_index_buffer(mesh.index_buffer.slice(..));
-        render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
-        render_pass.set_bind_group(1, &mesh.transform_bind_group, &[]);
-        render_pass.set_bind_group(2, &self.light_bind_group, &[]);
-        render_pass.draw_indexed(0..mesh.index_count, 0, 0..1);
+            });
+            render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+            render_pass.set_index_buffer(mesh.index_buffer.slice(..));
+            render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+            render_pass.set_bind_group(1, &mesh.transform_bind_group, &[]);
+            render_pass.set_bind_group(2, &self.light_bind_group, &[]);
+            render_pass.draw_indexed(0..mesh.index_count, 0, 0..1);
+        }
     }
 
     pub fn set_screen_size(&mut self, queue: &Queue, device: &Device, width: f32, height: f32) {
