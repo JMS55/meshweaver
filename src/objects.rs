@@ -6,21 +6,54 @@ use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::*;
 
 pub struct Mesh {
-    pub vertex_buffer: Buffer,
-    pub index_buffer: Buffer,
-    pub index_count: u32,
-
-    transform: Similarity3,
-    transform_uniform_buffer: Buffer,
-    pub transform_bind_group: BindGroup,
+    pub data: MeshData,
+    pub instances: Vec<Similarity3>,
 }
 
 impl Mesh {
-    pub fn from_obj_file<T: BufRead>(
+    pub fn from_obj_file<T: BufRead>(device: &Device, file: T) -> Self {
+        Self {
+            data: MeshData::from_obj_file(device, file),
+            instances: Vec::new(),
+        }
+    }
+
+    pub fn create_bind_group(
+        &self,
         device: &Device,
-        transform_bind_group_layout: &BindGroupLayout,
-        file: T,
-    ) -> Self {
+        instances_bind_group_layout: &BindGroupLayout,
+    ) -> BindGroup {
+        let instance_data = self
+            .instances
+            .iter()
+            .map(|transform| Mat4Raw {
+                data: *transform.into_homogeneous_matrix().as_array(),
+            })
+            .collect::<Vec<Mat4Raw>>();
+        let instance_buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(&instance_data),
+            usage: BufferUsage::STORAGE,
+        });
+        device.create_bind_group(&BindGroupDescriptor {
+            label: None,
+            layout: instances_bind_group_layout,
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: BindingResource::Buffer(instance_buffer.slice(..)),
+            }],
+        })
+    }
+}
+
+pub struct MeshData {
+    vertex_buffer: Buffer,
+    index_buffer: Buffer,
+    index_count: u32,
+}
+
+impl MeshData {
+    pub fn from_obj_file<T: BufRead>(device: &Device, file: T) -> Self {
         let obj = load_obj::<_, _, u16>(file).unwrap();
         let vertices = obj
             .vertices
@@ -41,54 +74,23 @@ impl Mesh {
             usage: BufferUsage::INDEX,
         });
         let index_count = obj.indices.len() as u32;
-
-        let transform = Similarity3::identity();
-        let transform_uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(transform.into_homogeneous_matrix().as_slice()),
-            usage: BufferUsage::UNIFORM | BufferUsage::COPY_DST,
-        });
-        let transform_bind_group = device.create_bind_group(&BindGroupDescriptor {
-            label: None,
-            layout: &transform_bind_group_layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: BindingResource::Buffer(transform_uniform_buffer.slice(..)),
-            }],
-        });
-
         Self {
             vertex_buffer,
             index_buffer,
             index_count,
-
-            transform,
-            transform_uniform_buffer,
-            transform_bind_group,
         }
     }
 
-    pub fn update_transform<F: FnOnce(&mut Similarity3)>(
-        &mut self,
-        queue: &Queue,
-        device: &Device,
-        transform_bind_group_layout: &BindGroupLayout,
-        func: F,
-    ) {
-        func(&mut self.transform);
-        queue.write_buffer(
-            &self.transform_uniform_buffer,
-            0,
-            bytemuck::cast_slice(self.transform.into_homogeneous_matrix().as_slice()),
-        );
-        self.transform_bind_group = device.create_bind_group(&BindGroupDescriptor {
-            label: None,
-            layout: transform_bind_group_layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: BindingResource::Buffer(self.transform_uniform_buffer.slice(..)),
-            }],
-        });
+    pub fn vertex_buffer(&self) -> &Buffer {
+        &self.vertex_buffer
+    }
+
+    pub fn index_buffer(&self) -> &Buffer {
+        &self.index_buffer
+    }
+
+    pub fn index_count(&self) -> u32 {
+        self.index_count
     }
 }
 
@@ -97,4 +99,10 @@ impl Mesh {
 pub struct Vertex {
     position: [f32; 3],
     normal: [f32; 3],
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Pod, Zeroable)]
+struct Mat4Raw {
+    data: [f32; 16],
 }

@@ -6,7 +6,7 @@ use crate::renderer::Renderer;
 use rayon::iter::{IntoParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 use std::iter;
 use std::time::{Duration, Instant};
-use ultraviolet::{Rotor3, Vec3};
+use ultraviolet::{Rotor3, Similarity3, Vec3};
 use wgpu::*;
 use winit::event::{ElementState, Event, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -64,26 +64,23 @@ fn main() {
         &include_bytes!("../meshes/uvsphere.obj")[..],
     ]
     .into_par_iter()
-    .map(|obj| Mesh::from_obj_file(&device, &renderer.transform_bind_group_layout, obj))
+    .map(|obj| Mesh::from_obj_file(&device, obj))
     .collect::<Vec<Mesh>>();
-    meshes[0].update_transform(
-        &queue,
-        &device,
-        &renderer.transform_bind_group_layout,
-        |transform| {
-            transform.translation = Vec3::new(-1.0, 0.0, 0.0);
-            transform.scale = 0.5;
-        },
-    );
-    meshes[1].update_transform(
-        &queue,
-        &device,
-        &renderer.transform_bind_group_layout,
-        |transform| {
-            transform.translation = Vec3::new(1.0, 0.0, 0.0);
-            transform.scale = 0.5;
-        },
-    );
+    meshes[0].instances.push(Similarity3::new(
+        Vec3::new(-1.0, -0.5, 0.0),
+        Rotor3::identity(),
+        0.5,
+    ));
+    meshes[0].instances.push(Similarity3::new(
+        Vec3::new(0.0, 0.5, 0.0),
+        Rotor3::identity(),
+        0.5,
+    ));
+    meshes[1].instances.push(Similarity3::new(
+        Vec3::new(1.0, -0.5, 0.0),
+        Rotor3::identity(),
+        0.5,
+    ));
 
     event_loop.run(move |event, _, control_flow| match event {
         Event::NewEvents(_) => {
@@ -140,15 +137,10 @@ fn main() {
             const TARGET_TIME: Duration = Duration::from_nanos(16666670);
             while time_accumulator >= TARGET_TIME {
                 meshes.par_iter_mut().for_each(|mesh| {
-                    mesh.update_transform(
-                        &queue,
-                        &device,
-                        &renderer.transform_bind_group_layout,
-                        |transform| {
-                            transform.rotation =
-                                Rotor3::from_rotation_xz(0.5f32.to_radians()) * transform.rotation;
-                        },
-                    );
+                    mesh.instances.par_iter_mut().for_each(|transform| {
+                        transform.rotation =
+                            Rotor3::from_rotation_xz(0.5f32.to_radians()) * transform.rotation;
+                    });
                 });
                 time_accumulator -= TARGET_TIME;
             }
@@ -159,7 +151,7 @@ fn main() {
             let frame = swapchain.get_current_frame().unwrap().output;
             let mut encoder =
                 device.create_command_encoder(&CommandEncoderDescriptor { label: None });
-            renderer.render(&meshes, &mut encoder, &frame.view);
+            renderer.render(&device, &mut encoder, &meshes, &frame.view);
             queue.submit(iter::once(encoder.finish()));
         }
         _ => {}
