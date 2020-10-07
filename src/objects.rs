@@ -5,8 +5,15 @@ use ultraviolet::Similarity3;
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::*;
 
+#[repr(C)]
+#[derive(Copy, Clone, Pod, Zeroable)]
+pub struct Vertex {
+    position: [f32; 3],
+    normal: [f32; 3],
+}
+
 pub struct Mesh {
-    pub data: MeshData,
+    data: MeshData,
     pub instances: Vec<Similarity3>,
 }
 
@@ -44,16 +51,28 @@ impl Mesh {
             }],
         })
     }
+
+    pub fn vertex_buffer(&self) -> &Buffer {
+        &self.data.vertex_buffer
+    }
+
+    pub fn index_buffer(&self) -> &Buffer {
+        &self.data.index_buffer
+    }
+
+    pub fn index_count(&self) -> u32 {
+        self.data.index_count
+    }
 }
 
-pub struct MeshData {
+struct MeshData {
     vertex_buffer: Buffer,
     index_buffer: Buffer,
     index_count: u32,
 }
 
 impl MeshData {
-    pub fn from_obj_file<T: BufRead>(device: &Device, file: T) -> Self {
+    fn from_obj_file<T: BufRead>(device: &Device, file: T) -> Self {
         let obj = load_obj::<_, _, u16>(file).unwrap();
         let vertices = obj
             .vertices
@@ -80,25 +99,6 @@ impl MeshData {
             index_count,
         }
     }
-
-    pub fn vertex_buffer(&self) -> &Buffer {
-        &self.vertex_buffer
-    }
-
-    pub fn index_buffer(&self) -> &Buffer {
-        &self.index_buffer
-    }
-
-    pub fn index_count(&self) -> u32 {
-        self.index_count
-    }
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Pod, Zeroable)]
-pub struct Vertex {
-    position: [f32; 3],
-    normal: [f32; 3],
 }
 
 #[repr(C)]

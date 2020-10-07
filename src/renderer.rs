@@ -242,16 +242,12 @@ impl Renderer {
                 }),
             });
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_vertex_buffer(0, mesh.data.vertex_buffer().slice(..));
-            render_pass.set_index_buffer(mesh.data.index_buffer().slice(..));
+            render_pass.set_vertex_buffer(0, mesh.vertex_buffer().slice(..));
+            render_pass.set_index_buffer(mesh.index_buffer().slice(..));
             render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
             render_pass.set_bind_group(1, &mesh_bind_group, &[]);
             render_pass.set_bind_group(2, &self.light_bind_group, &[]);
-            render_pass.draw_indexed(
-                0..mesh.data.index_count(),
-                0,
-                0..mesh.instances.len() as u32,
-            );
+            render_pass.draw_indexed(0..mesh.index_count(), 0, 0..mesh.instances.len() as u32);
         }
     }
 
