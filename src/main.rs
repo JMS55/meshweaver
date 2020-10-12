@@ -36,7 +36,7 @@ fn main() {
         adapter
             .request_device(
                 &DeviceDescriptor {
-                    features: Features::empty(),
+                    features: Features::TEXTURE_COMPRESSION_BC,
                     limits: Limits::default(),
                     shader_validation: true,
                 },
@@ -64,7 +64,14 @@ fn main() {
         &include_bytes!("../meshes/uvsphere.obj")[..],
     ]
     .into_par_iter()
-    .map(|obj| Mesh::from_obj_file(&device, obj))
+    .map(|obj| {
+        Mesh::from_obj_and_texture(
+            &queue,
+            &device,
+            obj,
+            &mut &include_bytes!("../textures/Moss001_4K/Moss001_4K_Color.dds")[..],
+        )
+    })
     .collect::<Vec<Mesh>>();
     meshes[0].instances.push(Similarity3::new(
         Vec3::new(-1.0, -0.5, 0.0),

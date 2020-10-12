@@ -6,8 +6,9 @@ edition = "2018"
 [dependencies]
 wgpu = "0.6"
 winit = "0.23"
+ultraviolet = { version = "0.7", features = ["bytemuck"] }
 obj-rs = "0.6"
-ultraviolet = "0.7"
+ddsfile = "0.4"
 rayon = "1.4"
 bytemuck = { version = "1.4", features = ["derive"] }
 env_logger = "0.7"

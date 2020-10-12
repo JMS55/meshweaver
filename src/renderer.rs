@@ -40,16 +40,34 @@ impl Renderer {
         let instances_bind_group_layout =
             device.create_bind_group_layout(&BindGroupLayoutDescriptor {
                 label: None,
-                entries: &[BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStage::VERTEX,
-                    ty: BindingType::StorageBuffer {
-                        dynamic: false,
-                        min_binding_size: None,
-                        readonly: true,
+                entries: &[
+                    BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: ShaderStage::VERTEX,
+                        ty: BindingType::StorageBuffer {
+                            dynamic: false,
+                            min_binding_size: None,
+                            readonly: true,
+                        },
+                        count: None,
                     },
-                    count: None,
-                }],
+                    BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: ShaderStage::FRAGMENT,
+                        ty: BindingType::SampledTexture {
+                            dimension: TextureViewDimension::D2,
+                            component_type: TextureComponentType::Float,
+                            multisampled: false,
+                        },
+                        count: None,
+                    },
+                    BindGroupLayoutEntry {
+                        binding: 2,
+                        visibility: ShaderStage::FRAGMENT,
+                        ty: BindingType::Sampler { comparison: false },
+                        count: None,
+                    },
+                ],
             });
         let light_bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: None,
@@ -110,7 +128,7 @@ impl Renderer {
                 vertex_buffers: &[VertexBufferDescriptor {
                     stride: mem::size_of::<Vertex>() as BufferAddress,
                     step_mode: InputStepMode::Vertex,
-                    attributes: &vertex_attr_array![0 => Float3, 1 => Float3],
+                    attributes: &vertex_attr_array![0 => Float3, 1 => Float3, 2 => Float3],
                 }],
             },
             sample_count: 8,
@@ -222,7 +240,8 @@ impl Renderer {
         });
 
         for mesh in meshes {
-            let mesh_bind_group = mesh.create_bind_group(device, &self.instances_bind_group_layout);
+            let mesh_bind_group =
+                mesh.create_instances_bind_group(device, &self.instances_bind_group_layout);
             let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 color_attachments: &[RenderPassColorAttachmentDescriptor {
                     attachment: &self.msaa_texture,
